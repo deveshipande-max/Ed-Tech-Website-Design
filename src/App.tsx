@@ -1,6 +1,13 @@
 import { useMemo, useState, type ReactNode, type SVGProps } from "react";
 
 type Page = "home" | "explore" | "certificates" | "packages";
+type SelectedPath = {
+  name: string;
+  topic: string;
+  courses: string[];
+  total: number;
+  hours: number;
+};
 type IconName =
   | "home"
   | "compass"
@@ -106,6 +113,8 @@ const courseNames: Record<string, string[]> = {
     "Build your audience",
   ],
 };
+
+const numberWords = ["zero", "one", "two", "three", "four"];
 
 const navItems: { page: Page; label: string; icon: IconName }[] = [
   { page: "home", label: "Home", icon: "home" },
@@ -265,9 +274,9 @@ function Navigation({
         <p>Build a plan around your goals, not a subscription.</p>
       </div>
       <button className="profile-mini" type="button">
-        <span>AM</span>
+        <span>DP</span>
         <span>
-          <strong>Alex Morgan</strong>
+          <strong>Deveshi Pande</strong>
           <small>Learning steadily</small>
         </span>
       </button>
@@ -275,13 +284,31 @@ function Navigation({
   );
 }
 
-function Topbar({ page }: { page: Page }) {
+function Topbar({
+  page,
+  onCourseSelect,
+}: {
+  page: Page;
+  onCourseSelect: (topic: string) => void;
+}) {
+  const [query, setQuery] = useState("");
   const labels: Record<Page, string> = {
     home: "Overview",
     explore: "Explore learning",
     certificates: "Certificates",
     packages: "Your package",
   };
+  const courseResults = Object.entries(courseNames)
+    .flatMap(([courseTopic, courses]) =>
+      courses.map((course) => ({ course, topic: courseTopic })),
+    )
+    .filter(
+      ({ course, topic }) =>
+        query.trim().length > 0 &&
+        `${course} ${topic}`.toLowerCase().includes(query.toLowerCase()),
+    )
+    .slice(0, 6);
+
   return (
     <header className="topbar">
       <div className="mobile-brand">
@@ -289,12 +316,45 @@ function Topbar({ page }: { page: Page }) {
       </div>
       <span className="eyebrow">{labels[page]}</span>
       <div className="topbar__actions">
-        <button type="button" className="search-button" aria-label="Search">
+        <div className="course-search">
           <Icon name="search" />
-          <span>Search courses</span>
-        </button>
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search courses"
+            aria-label="Search individual courses"
+          />
+          {query && (
+            <div className="search-results">
+              {courseResults.length > 0 ? (
+                courseResults.map(({ course, topic: resultTopic }) => (
+                  <button
+                    type="button"
+                    key={`${resultTopic}-${course}`}
+                    onClick={() => {
+                      onCourseSelect(resultTopic);
+                      setQuery("");
+                    }}
+                  >
+                    <span>
+                      <Icon name="book" />
+                    </span>
+                    <span>
+                      <strong>{course}</strong>
+                      <small>Available in {resultTopic} packages</small>
+                    </span>
+                    <Icon name="arrow" />
+                  </button>
+                ))
+              ) : (
+                <p>No courses found for “{query}”</p>
+              )}
+            </div>
+          )}
+        </div>
         <button type="button" className="avatar" aria-label="Open profile">
-          AM
+          DP
         </button>
       </div>
     </header>
@@ -648,7 +708,13 @@ function ExplorePage({
   );
 }
 
-function CertificatePage({ onExplore }: { onExplore: () => void }) {
+function CertificatePage({
+  onExplore,
+  selectedPaths,
+}: {
+  onExplore: () => void;
+  selectedPaths: SelectedPath[];
+}) {
   const benefits = [
     ["Shareable proof", "Add verified credentials to your profile and résumé."],
     ["Built by experts", "Demonstrate skills reviewed by working professionals."],
@@ -682,7 +748,7 @@ function CertificatePage({ onExplore }: { onExplore: () => void }) {
             <span className="certificate-label">Certificate of completion</span>
             <h3>Product Design</h3>
             <p>Presented to</p>
-            <h4>Alex Morgan</h4>
+            <h4>Deveshi Pande</h4>
             <div className="certificate-signatures">
               <span>
                 <strong>R. Quinn</strong>
@@ -711,6 +777,71 @@ function CertificatePage({ onExplore }: { onExplore: () => void }) {
         </div>
       </section>
 
+      {selectedPaths.length > 0 && (
+        <section className="certificate-paths">
+          <div className="certificate-paths__heading">
+            <div>
+              <span className="eyebrow">Your active learning</span>
+              <h2>Certificates in progress</h2>
+            </div>
+            <Button variant="secondary" onClick={onExplore}>
+              Add another path <Icon name="arrow" />
+            </Button>
+          </div>
+          {selectedPaths.map((selectedPath) => (
+            <article
+              className="certificate-progress-card"
+              key={`${selectedPath.topic}-${selectedPath.name}`}
+            >
+              <div className="certificate-progress-card__intro">
+                <span className="certificate-progress-card__icon">
+                  <Icon name="certificate" />
+                </span>
+                <div>
+                  <span className="eyebrow">
+                    {selectedPath.topic} · Certificate in progress
+                  </span>
+                  <h2>
+                    Finish your {selectedPath.name.toLowerCase()} to earn your{" "}
+                    {numberWords[selectedPath.courses.length]} certificates
+                  </h2>
+                  <p>
+                    Complete all {selectedPath.courses.length} courses in this
+                    package. Each completed course awards its own verified
+                    certificate.
+                  </p>
+                </div>
+                <div className="certificate-progress-card__score">
+                  <strong>18%</strong>
+                  <span>complete</span>
+                </div>
+              </div>
+              <div className="certificate-progress-track">
+                <span />
+              </div>
+              <div className="certificate-course-progress">
+                {selectedPath.courses.map((course, index) => (
+                  <div key={course} className={index === 0 ? "is-active" : ""}>
+                    <span>
+                      {index === 0 ? <Icon name="play" /> : index + 1}
+                    </span>
+                    <div>
+                      <strong>{course}</strong>
+                      <small>
+                        {index === 0
+                          ? "2 of 3 lessons complete"
+                          : "Not started yet"}
+                      </small>
+                    </div>
+                    <b>{index === 0 ? "67%" : "0%"}</b>
+                  </div>
+                ))}
+              </div>
+            </article>
+          ))}
+        </section>
+      )}
+
       <section className="section certificate-benefits">
         <div className="section-heading section-heading--center">
           <div>
@@ -738,15 +869,6 @@ function CertificatePage({ onExplore }: { onExplore: () => void }) {
           ))}
         </div>
       </section>
-
-      <section className="certificate-quote">
-        <Icon name="sparkle" />
-        <blockquote>
-          “My Pathwise certificate helped me talk about my skills with confidence
-          — and the portfolio work helped me prove them.”
-        </blockquote>
-        <p>Jamie Lee · Junior product designer</p>
-      </section>
     </div>
   );
 }
@@ -756,11 +878,13 @@ function PackagePage({
   topic,
   style,
   onAdjust,
+  onChoose,
 }: {
   budget: number;
   topic: string;
   style: string;
   onAdjust: () => void;
+  onChoose: (path: SelectedPath) => void;
 }) {
   const [selectedPackageIndex, setSelectedPackageIndex] = useState<number | null>(
     null,
@@ -886,7 +1010,8 @@ function PackagePage({
               </div>
               <div className="package-card__footer">
                 <span>
-                  <Icon name="certificate" /> Certificate included
+                  <Icon name="certificate" />{" "}
+                  {numberWords[item.courses.length]} certificates included
                 </span>
                 <Button
                   variant="primary"
@@ -901,9 +1026,9 @@ function PackagePage({
 
         <aside className="plan-sidebar">
           <div className="plan-profile">
-            <span className="plan-profile__avatar">AM</span>
+            <span className="plan-profile__avatar">DP</span>
             <h3>Your learning plan</h3>
-            <p>Personalized for Alex</p>
+            <p>Personalized for Deveshi</p>
           </div>
           <div className="plan-detail">
             <span>Available budget</span>
@@ -918,7 +1043,7 @@ function PackagePage({
           <div className="weekly-card">
             <div className="weekly-card__heading">
               <span>Learning progress</span>
-              <strong>42%</strong>
+              <strong>18%</strong>
             </div>
             <div className="weekly-progress">
               <span />
@@ -1033,13 +1158,22 @@ function PackagePage({
                 <span>Total package investment</span>
                 <strong>${selectedPackage.total}</strong>
                 <small>
-                  {selectedPackage.courses.length * 3} lessons · Certificate
+                  {selectedPackage.courses.length * 3} lessons ·{" "}
+                  {numberWords[selectedPackage.courses.length]} certificates
                   included
                 </small>
               </div>
               <Button
                 variant="primary"
-                onClick={() => setSelectedPackageIndex(null)}
+                onClick={() =>
+                  onChoose({
+                    name: selectedPackage.name,
+                    topic,
+                    courses: selectedPackage.courses,
+                    total: selectedPackage.total,
+                    hours: selectedPackage.hours,
+                  })
+                }
               >
                 Choose this path <Icon name="arrow" />
               </Button>
@@ -1056,6 +1190,7 @@ export default function App() {
   const [budget, setBudget] = useState(135);
   const [topic, setTopic] = useState("Design");
   const [style, setStyle] = useState("A balanced mix");
+  const [selectedPaths, setSelectedPaths] = useState<SelectedPath[]>([]);
 
   const navigate = (nextPage: Page) => {
     setPage(nextPage);
@@ -1066,7 +1201,13 @@ export default function App() {
     <div className="app-shell">
       <Navigation current={page} onNavigate={navigate} />
       <main className="main-content">
-        <Topbar page={page} />
+        <Topbar
+          page={page}
+          onCourseSelect={(courseTopic) => {
+            setTopic(courseTopic);
+            navigate("packages");
+          }}
+        />
         {page === "home" && <HomePage onNavigate={navigate} topic={topic} />}
         {page === "explore" && (
           <ExplorePage
@@ -1080,7 +1221,10 @@ export default function App() {
           />
         )}
         {page === "certificates" && (
-          <CertificatePage onExplore={() => navigate("explore")} />
+          <CertificatePage
+            onExplore={() => navigate("explore")}
+            selectedPaths={selectedPaths}
+          />
         )}
         {page === "packages" && (
           <PackagePage
@@ -1088,6 +1232,19 @@ export default function App() {
             topic={topic}
             style={style}
             onAdjust={() => navigate("explore")}
+            onChoose={(path) => {
+              setSelectedPaths((currentPaths) => {
+                const isAlreadySelected = currentPaths.some(
+                  (currentPath) =>
+                    currentPath.name === path.name &&
+                    currentPath.topic === path.topic,
+                );
+                return isAlreadySelected
+                  ? currentPaths
+                  : [...currentPaths, path];
+              });
+              navigate("certificates");
+            }}
           />
         )}
       </main>
